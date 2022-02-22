@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: This template deploys a Lambda function that is triggered by an EventBridge Schedule. The Lambda function monitors the PostgreSQL cron job logs and alert when failures are found, by sending notification using Amazon SNS.
+
+Parameters:
+  pNotificationEmail:
+    Type: String
+    AllowedPattern: "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$"
+    Default: example@example.com
+    Description: Email address to alert of any security control violations
+
+  pVpc:
+    Type: String
+    Description: VPC Id where the Lambda Function will be deployed
+
+  pPrivateSubnet1:
+    Type: String
+    Description: Private Subnet Id 1 to create the Lambda Function
+
+  pPrivateSubnet2:
+    Type: String
+    Description: Private Subnet Id 2 to create the Lambda Function
+
+  pApgClusterName:
+    Description: Enter the Name of Aurora Cluster
+    Type: String
+    Default: demopg
+
+  pCronHist:
+    Description: Enter cron history to verify, in minutes (>2). Same value will be used to schedule the lambda function.
+    Type: Number
+    Default: 2
+
+  pDbHost:
+    Description: Enter the db host or endpoint
+    Type: String
+    Default: demopg.abcdefgh.us-east-1.rds.amazonaws.com
+
+  pDbPort:
+    Description: Enter the database port
+    Type: String
+    Default: 5432
+
+Resources:
+  rSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows connectivity between Lambda and Endpoints
+      VpcId: !Ref pVpc
+
+  rSecurityGroupingress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref rSecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref rSecurityGroup
+      Description: 'Self Reference'
+
+# Access is restriced to specific parameters in Parameter Store, rds_iamuser in Aurora PostgreSQL database and SNS Topic.
+  rLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyName: !Sub '${AWS::StackName}-LambdaPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ssmaccess
+                Effect: Allow
+                Action:
+                  - ssm:GetParameterHistory
+                  - ssm:GetParametersByPath
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/check_cron_job_status/*'
+              - Sid: snsaccess
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref rNotifyTopicSNS
+              - Sid: rdsaccess
+                Effect: Allow
+                Action:
+                  - rds-db:connect
+                Resource: !Sub 'arn:${AWS::Partition}:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:*/rds_iamuser'
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+  rLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: main.check_cron_job_status
+      Runtime: python3.8
+      MemorySize: 128
+      Role: !GetAtt 'rLambdaRole.Arn'
+      Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref rSecurityGroup
+        SubnetIds:
+          - !Ref pPrivateSubnet1
+          - !Ref pPrivateSubnet2
+
+      Events:
+        rSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Sub "rate(${pCronHist} minutes)"
+            Input: !Sub '{ "db1_param": "/check_cron_job_status/${pApgClusterName}" }'
+
+  rNotifyTopicSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !Ref pNotificationEmail
+          Protocol: email
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-SnsTopic
+
+  rDbHost:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join ["/", ["/check_cron_job_status", !Ref pApgClusterName, "db_host"]]
+      Type: String
+      Value: !Ref pDbHost
+      Description: This parameter provides Aurora PostgreSQL database endpoint.
+
+  rDbPort:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join ["/", ["/check_cron_job_status", !Ref pApgClusterName, "db_port"]]
+      Type: String
+      Value: !Ref pDbPort
+      Description: This parameter provides the port that Aurora PostgreSQL database is listening on.
+
+  rCronHist:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join ["/", ["/check_cron_job_status", !Ref pApgClusterName, "cron_hist_in_minutes"]]
+      Type: String
+      Value: !Ref pCronHist
+      Description: This parameter controls how far in history should the program, query the table - cron.job_run_details, which contains the job execution log.
+
+  rSnsTopic:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join ["/", ["/check_cron_job_status", !Ref pApgClusterName, "sns_topic"]]
+      Type: String
+      Value: !Ref rNotifyTopicSNS
+      Description: This parameter provides the ARN of the SNS topic that is used for send notification.
+
+  rSnsEndPoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Join
+        - ''
+        - - com.amazonaws.
+          - !Ref 'AWS::Region'
+          - .sns
+      SubnetIds:
+        - !Ref pPrivateSubnet1
+        - !Ref pPrivateSubnet2
+      SecurityGroupIds:
+        - !Ref rSecurityGroup
+      VpcEndpointType: Interface
+      VpcId: !Ref pVpc
+
+  rSsmEndPoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Join
+        - ''
+        - - com.amazonaws.
+          - !Ref 'AWS::Region'
+          - .ssm
+      SubnetIds:
+        - !Ref pPrivateSubnet1
+        - !Ref pPrivateSubnet2
+      SecurityGroupIds:
+        - !Ref rSecurityGroup
+      VpcEndpointType: Interface
+      VpcId: !Ref pVpc
