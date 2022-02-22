@@ -171,7 +171,7 @@ Parameters:
   pS3CodeLocation:
     Description: Enter S3 bucket path that contains the source code
     Type: String
-    Default: "s3://bucket-name/check-cron-job-status.zip"
+    Default: "s3://bucket-name/aws-postgresql-interval-partitioning-main.zip"
   
 Mappings: 
   mDBFamily: 
@@ -474,9 +474,9 @@ Resources:
           sudo su - ec2-user
           cd ~ec2-user
           aws s3 cp ${pS3CodeLocation} .
-          unzip check-cron-job-status.zip
-          sudo chown -R ec2-user:ec2-user check-cron-job-status
-          cd check-cron-job-status/sql
+          unzip aws-postgresql-interval-partitioning-main.zip
+          sudo chown -R ec2-user:ec2-user aws-postgresql-interval-partitioning-main
+          cd aws-postgresql-interval-partitioning-main/check-cron-job-status/sql
           v_secret_id=`echo ${rAuroraPostgresSecret} | rev | cut -f 1 -d':' | cut -f 2- -d '-' | rev`
           export PGPASSWORD=`aws secretsmanager get-secret-value --secret-id $v_secret_id --version-stage AWSCURRENT --region ${AWS::Region} --output table | grep "SecretString" | cut -f 3 -d ":" | cut -f 1 -d "," | sed "s/\"//g"`
           export PGUsername=${pPGDBAdminUser}
