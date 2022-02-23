@@ -564,7 +564,6 @@ Resources:
   rAuroraPGInstance1:
     Type: AWS::RDS::DBInstance
     Properties:
-      CopyTagsToSnapshot: true  
       DBInstanceClass:
         Ref: pPGDBInstanceClass
       DBClusterIdentifier: !Ref rAuroraPGCluster  
@@ -586,8 +585,6 @@ Resources:
 
   rAuroraPostgresSecretAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
-    DependsOn: 
-      - rAuroraPGCluster
     Properties:
       SecretId: !Ref rAuroraPostgresSecret
       TargetId: !Ref rAuroraPGCluster
