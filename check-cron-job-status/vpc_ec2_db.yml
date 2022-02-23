@@ -38,7 +38,7 @@ Metadata:
         default: "Enter Public Bastion Subnet CIDR"
       pPrivateDBSubnet1CIDR:
         default: "Enter Private DB Subnet1 CIDR"
-      pPrivateDBSubnet1CIDR:
+      pPrivateDBSubnet2CIDR:
         default: "Enter Private DB Subnet2 CIDR"
       pSourceIp:
         default: "Please enter the Source IP range (CIDR notation) that will be used to connect to EC2"
@@ -388,9 +388,6 @@ Resources:
       IpProtocol: -1
       SourceSecurityGroupId: !GetAtt 'rVPCEndpointSecurityGroup.GroupId'
       Description: 'Self Reference'
-      IpProtocol: -1
-      SourceSecurityGroupId: !GetAtt 'rBastionSecurityGroup.GroupId'
-      Description: "Allow connectivity between VPC endpoint and Bastion Host"
 
   rSecretsManagerVPCEndpoint:
     Type: 'AWS::EC2::VPCEndpoint'
@@ -450,6 +447,7 @@ Resources:
       SubnetId: !Ref rPublicBastionSubnet1
       SecurityGroupIds: 
         - !Ref rBastionSecurityGroup
+        - !Ref rVPCEndpointSecurityGroup
       BlockDeviceMappings: 
       - DeviceName: /dev/xvda
         Ebs: 
