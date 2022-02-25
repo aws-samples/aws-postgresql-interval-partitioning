@@ -47,6 +47,10 @@ Resources:
     Properties:
       GroupDescription: Allows connectivity between Lambda and Endpoints
       VpcId: !Ref pVpc
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          Description: Allow all outgoing connections
 
   rSecurityGroupingress:
     Type: AWS::EC2::SecurityGroupIngress

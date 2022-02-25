@@ -321,6 +321,11 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref pSourceIp
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          Description: Allow all outgoing connections
+
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-Bastion SecurityGroup
@@ -346,6 +351,10 @@ Resources:
           FromPort: 5432
           ToPort: 5432
           CidrIp: !Ref pPrivateDBSubnet2CIDR
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          Description: Allow all outgoing connections
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-DB SecurityGroup
@@ -377,6 +386,10 @@ Resources:
     Properties:
       GroupDescription:  "Security group for VPC Endpoints"
       VpcId: !Ref rVPC
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          Description: Allow all outgoing connections
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-VPCEndpointSecurityGroup'
@@ -440,6 +453,7 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn: 
       - rAuroraPGInstance1
+      - rAuroraPGInstance2
     Properties:
       InstanceType: !Ref pBastionInstanceType
       ImageId: !Ref pBastionAmiId
@@ -462,6 +476,7 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          set -vx
           sudo su -
           yum install -y wget
           amazon-linux-extras install -y postgresql13
@@ -574,7 +589,29 @@ Resources:
         Ref: rDBParamGroup
       MonitoringInterval: 1
       MonitoringRoleArn: !GetAtt rMonitoringIAMRole.Arn
-      AutoMinorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: true
+      DBSubnetGroupName: !Ref rDBSubnetGroup
+      PubliclyAccessible: false
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 7
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Aurora PG Instance
+
+  rAuroraPGInstance2:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass:
+        Ref: pPGDBInstanceClass
+      DBClusterIdentifier: !Ref rAuroraPGCluster  
+      DBInstanceIdentifier: !Sub ${pPGDBName}-AuroraPGInstance2
+      Engine: aurora-postgresql
+      EngineVersion: !Ref pPGDBEngineVersion
+      DBParameterGroupName:
+        Ref: rDBParamGroup
+      MonitoringInterval: 1
+      MonitoringRoleArn: !GetAtt rMonitoringIAMRole.Arn
+      AutoMinorVersionUpgrade: true
       DBSubnetGroupName: !Ref rDBSubnetGroup
       PubliclyAccessible: false
       EnablePerformanceInsights: true
@@ -674,3 +711,9 @@ Outputs:
     Value: !Ref rAuroraPGInstance1
     Export:
       Name: !Sub "${AWS::StackName}-AuroraPGInstance1"
+
+  oAuroraPGInstance2:
+    Description: Aurora Postgres Instance2
+    Value: !Ref rAuroraPGInstance2
+    Export:
+      Name: !Sub "${AWS::StackName}-AuroraPGInstance2"
