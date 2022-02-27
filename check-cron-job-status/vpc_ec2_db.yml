@@ -476,7 +476,6 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          set -vx
           sudo su -
           yum install -y wget
           amazon-linux-extras install -y postgresql13
