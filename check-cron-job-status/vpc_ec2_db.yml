@@ -21,6 +21,7 @@ Metadata:
           - pBastionAmiId
           - pBastionInstanceType
           - pEC2KeyPair
+          - pEc2InstanceProfile
       - Label:
           default: Aurora Postgres Configuration
         Parameters:
@@ -48,6 +49,8 @@ Metadata:
         default: "Enter AMI ID for Bastion Server"
       pBastionInstanceType:
         default: "Enter EC2 instance type for Bastion Server"
+      pEc2InstanceProfile:
+        default: "Enter the Name of the EC2 instance profile which has permission to deploy AWS Services"
       pPGDBName: 
         default: "Enter Aurora Postgres Database Name"
       pPGDBPort:
@@ -63,44 +66,35 @@ Metadata:
 
 Parameters:
   pVpcCIDR:
-    Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
     Default: 10.192.0.0/16
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
 
   pPublicBastionSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
     Type: String
     Default: 10.192.10.0/24
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
 
   pPrivateDBSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
     Type: String
     Default: 10.192.21.0/24
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
 
   pPrivateDBSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
     Type: String
     Default: 10.192.22.0/24
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
 
   pSourceIp:
-    Description: Please enter the Source IP range (CIDR notation for local laptop or desktop) that will be used to connect to EC2 Instance/Bastion Host
     Type: String
     Default: 98.50.105.0/24
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
 
   pEC2KeyPair:
-    Description: >-
-      Enter a Public/private key pair. If you do not have one in this AWS Region,
-      create it before continuing
     Type: 'AWS::EC2::KeyPair::KeyName'
     AllowedPattern: '^[a-zA-Z]+[0-9a-zA-Z\-]*$'
 
   pBastionAmiId:
-    Description: AMI used to create Bastion Server
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
     AllowedPattern: '^[0-9a-zA-Z\-\/_]*$'
@@ -111,11 +105,12 @@ Parameters:
       - c5.large
       - m5.large
     Default: t2.micro
-    Description: EC2 instance type for Bastion Server
+    Type: String
+
+  pEc2InstanceProfile:
     Type: String
 
   pPGDBName:
-    Description: Aurora Postgres Database Name
     Type: String
     Default: 'testapg'
     MinLength: '1'
@@ -124,7 +119,6 @@ Parameters:
     ConstraintDescription: Must start with a letter. Only numbers, letters, and _ accepted. max length 64 characters 
 
   pPGDBPort:
-    Description: TCP/IP Port for the Aurora Postgres Instance
     Type: Number
     Default: 5432
     ConstraintDescription: 'Must be in the range [1115-65535]'
@@ -132,7 +126,6 @@ Parameters:
     MaxValue: 65535
     
   pPGDBAdminUser:
-    Description: Aurora Postgres Database master username
     Type: String
     Default: rdspgdba
     MinLength: '1'
@@ -141,7 +134,6 @@ Parameters:
     ConstraintDescription: Must start with a letter. Only numbers, letters, and _ accepted. max length 16 characters
      
   pPGDBEngineVersion:
-    Description: Select Aurora Postgres Database Engine Version
     Type: String
     Default: 12.6
     AllowedValues:
@@ -152,7 +144,6 @@ Parameters:
     - 13.4
 
   pPGDBInstanceClass:
-    Description: Aurora Postgres Database Instance Class
     Type: String
     Default: db.t4g.large
     AllowedValues:
@@ -161,7 +152,6 @@ Parameters:
     - db.r5.xlarge
     
   pPGDBBackupRetention:
-    Description: Backup Retention for Aurora Postgres Database
     Type: Number
     Default: 1
     ConstraintDescription: 'Must be in the range [1-35]'
@@ -169,7 +159,6 @@ Parameters:
     MaxValue: 35
 
   pS3CodeLocation:
-    Description: Enter S3 bucket path that contains the source code
     Type: String
     Default: "s3://bucket-name/aws-postgresql-interval-partitioning-main.zip"
   
@@ -415,40 +404,6 @@ Resources:
         - !Ref rVPCEndpointSecurityGroup
       ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
 
-  rEc2Role:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
-        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-        - "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-        - "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
-        - "arn:aws:iam::aws:policy/AmazonSSMFullAccess"
-        - "arn:aws:iam::aws:policy/IAMFullAccess"
-        - "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
-        - "arn:aws:iam::aws:policy/CloudWatchEventsFullAccess"
-        - "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-EC2 Privs IAM Role
-
-  rEc2InstanceProfile:
-    Type: 'AWS::IAM::InstanceProfile'
-    Properties:
-      Path: /
-      Roles:
-        - !Ref rEc2Role
-
   rBastionServer:
     Type: AWS::EC2::Instance
     DependsOn: 
@@ -469,7 +424,7 @@ Resources:
           DeleteOnTermination: true
           VolumeSize: 20
           Encrypted: true
-      IamInstanceProfile: !Ref rEc2InstanceProfile
+      IamInstanceProfile: !Ref pEc2InstanceProfile
       Tags:
         - Key: Name
           Value: !Sub ${AWS::StackName}-BastionServer
