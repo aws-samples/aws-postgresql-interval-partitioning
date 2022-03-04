@@ -61,7 +61,7 @@ def check_cron_job_status(event, context):
                             row['runid'] + ' has failed with ERROR !!! = ' + row['return_message'] + "\n"
     
             print(v_message)
-            response = v_sns.publish(TopicArn=v_sns_topic, Message=v_message, Subject="Cron Job Errors!!! for DB Cluster = " + v_db_host)
+            response = v_sns.publish(TopicArn=v_sns_topic, Message=v_message, Subject="Cron Job Errors!!! for DB Cluster = " + v_db_host.split('.')[0])
 
         v_message = ''
         cursor.close()
