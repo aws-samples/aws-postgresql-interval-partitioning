@@ -17,20 +17,39 @@ Important: this application uses various AWS services and there are costs associ
 
 1. Create a new directory, navigate to that directory in a terminal and clone the GitHub repository:
     ```
-    git clone https://github.com/aws-samples/serverless-patterns
+    git clone https://github.com/aws-samples/aws-postgresql-interval-partitioning.git
     ```
 1. Change directory to the pattern directory:
     ```
-    cd check-cron-job-status
+    cd aws-postgresql-interval-partitioning/check-cron-job-status
     ```
 1. From the command line, use AWS SAM to deploy the AWS resources for the pattern as specified in the template.yml file:
     ```
     sam deploy --guided
     ```
 1. During the prompts:
-    * Enter a stack name
-    * Enter the desired AWS Region
-    * Allow SAM CLI to create IAM roles with the required permissions.
+## Sample below
+
+Stack Name [sam-app]: check-cron-job-status
+AWS Region [us-east-1]: us-west-2
+Parameter pNotificationEmail [example@example.com]: notifydba@xyz.com
+Parameter pVpc []: vpc-01234567890awsvpc
+Parameter pPrivateSubnet1 []: subnet-01234567890abcdef
+Parameter pPrivateSubnet2 []: subnet-01234567890ghijkl
+Parameter pApgClusterName [demopg]: ec2-db-aurorapgcluster
+Parameter pCronHist [2]:
+Parameter pDbHost [demopg.abcdefgh.us-east-1.rds.amazonaws.com]: vpc-ec2-db-aurorapgcluster.cluster-abcdefgh.us-west-2.rds.amazonaws.com
+Parameter pDbPort [5432]:
+#Shows you resources changes to be deployed and require a 'Y' to initiate deploy
+Confirm changes before deploy [y/N]: y
+#SAM needs permission to be able to create roles to connect to the resources in your template
+Allow SAM CLI IAM role creation [Y/n]: Y
+#Preserves the state of previously provisioned resources when an operation fails
+Disable rollback [y/N]: N
+Save arguments to configuration file [Y/n]: Y
+SAM configuration file [samconfig.toml]:
+SAM configuration environment [default]:
+
 
     Once you have run `sam deploy -guided` mode once and saved arguments to a configuration file (samconfig.toml), you can use `sam deploy` in future to use these defaults.
 
