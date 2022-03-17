@@ -8,13 +8,21 @@ CREATE USER rds_iamuser;
 GRANT CONNECT ON DATABASE postgres TO rds_iamuser;
 GRANT rds_iam TO rds_iamuser;
 
-CREATE POLICY cron_job_run_details_view_policy
-ON cron.job_run_details
-AS PERMISSIVE
-FOR SELECT
-TO rds_iamuser
-USING (true);
+CREATE OR REPLACE FUNCTION get_job_run_details (p_min int) 
+RETURNS TABLE (json_agg json) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+	RETURN query 
+		SELECT json_agg(j) 
+		  FROM (SELECT start_time, end_time, jobid::text, runid::text, database, 
+		               command, substring(return_message,1,100) return_message, status 
+		          FROM cron.job_run_details
+		         WHERE status!='succeeded' 
+				   AND end_time >= now() - interval '1 minute' * p_min) j;
+END;$$
 
 GRANT USAGE ON SCHEMA cron TO rds_iamuser;
-GRANT SELECT ON cron.job_run_details TO rds_iamuser;
+GRANT EXECUTE ON FUNCTION public.get_job_run_details (int) TO rds_iamuser;
 
