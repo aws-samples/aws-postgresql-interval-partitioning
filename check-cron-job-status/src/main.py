@@ -43,10 +43,7 @@ def check_cron_job_status(event, context):
         v_db_pass = v_rds.generate_db_auth_token(DBHostname=v_db_host, Port=v_db_port, DBUsername=v_db_user)
         conn = pg8000.connect(host=v_db_host, database=v_db_name, port=v_db_port, user=v_db_user, password=v_db_pass, ssl_context=True)
 
-
-        query = "select json_agg(j) from (select start_time, end_time, jobid::text, runid::text, database, " \
-                "command, substring(return_message,1,100) return_message, status from  cron.job_run_details " \
-                "where status!='succeeded' and end_time >= now() - interval '" + str(v_cron_hist_in_minutes) + " minute') j"
+        query = "select * from get_job_run_details (" + str(v_cron_hist_in_minutes) + ");"
     
         print(dt.datetime.now(), " : Executing Query : ", query)
     
