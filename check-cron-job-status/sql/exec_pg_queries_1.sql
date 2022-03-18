@@ -21,7 +21,8 @@ BEGIN
 		          FROM cron.job_run_details
 		         WHERE status!='succeeded' 
 				   AND end_time >= now() - interval '1 minute' * p_min) j;
-END;$$
+END;
+$$;
 
 GRANT USAGE ON SCHEMA cron TO rds_iamuser;
 GRANT EXECUTE ON FUNCTION public.get_job_run_details (int) TO rds_iamuser;
