@@ -12,14 +12,17 @@ Parameters:
   pVpc:
     Type: String
     Description: VPC Id where the Lambda Function will be deployed
+    Default: vpc-xxxxxx123
 
   pPrivateSubnet1:
     Type: String
     Description: Private Subnet Id 1 to create the Lambda Function
+    Default: subnet-xxxxxx123
 
   pPrivateSubnet2:
     Type: String
     Description: Private Subnet Id 2 to create the Lambda Function
+    Default: subnet-xxxxxx456
 
   pApgClusterName:
     Description: Enter the Name of Aurora Cluster
