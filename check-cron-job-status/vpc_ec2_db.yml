@@ -135,13 +135,15 @@ Parameters:
      
   pPGDBEngineVersion:
     Type: String
-    Default: 12.6
+    Default: 13.5
     AllowedValues:
-    - 12.6
-    - 12.7
     - 12.8
+    - 12.9
+    - 12.10
     - 13.3
     - 13.4
+    - 13.5
+    - 13.6
 
   pPGDBInstanceClass:
     Type: String
